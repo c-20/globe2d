@@ -7,12 +7,16 @@
 //  int screenh = GetSystemMetrics(SM_CYSCREEN);
   unsigned char kbstate[256];
   if (GetKeyboardState(kbstate)) {
+    int kbshift = (kbstate[VK_SHIFT] > 1) ? 1 : 0;
+//    int kbctrl = (kbstate[VK_CONTROL] > 1) ? 1 : 0;
     int kbletters = 0;
     int kbi = 'A' - 1;
     while (++kbi <= 'Z') {
       if (kbstate[kbi] > 1) { // ignore toggle
         kbletters++;
-        PRESSVARLETTERKEY(kbi); // press letter key
+        int kbletter = kbi - 'A' + 'a';
+        if (kbshift) { kbletter -= 'a' - 'A'; }
+        PRESSVARLETTERKEY(kbletter);
       }
     }
     /*
@@ -36,6 +40,9 @@
 //printf("%d,%d\n", mousex, mousey);
     char mousectrlkey = (GetKeyState(VK_LCONTROL) & 0x8000) ? 1 : 0;
     char mouseshiftkey = (GetKeyState(VK_LSHIFT) & 0x8000) ? 1 : 0;
+    char swapmousekeys = mousectrlkey;
+    mousectrlkey = mouseshiftkey;
+    mouseshiftkey = swapmousekeys;
 //    if (!mouseinshift && mouseshiftkey) {
 // printf("%f,%f\n", scaleshiftx, scaleshifty);
 //    scalex += scaleshiftx; // + (0.1 * scaleshift);

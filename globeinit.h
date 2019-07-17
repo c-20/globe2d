@@ -1,26 +1,14 @@
 
 void globe2dinit() {
-  VARLETTERKEYS(globeceilingx,  'O', 'P');  // O <--   top centre X   ++> P
-  VARLETTERKEYS(globeceilingy,  'U', 'I');  // U <--   top centre Y   ++> I
-  VARLETTERKEYS(discfloorz,     'B', 'G');  // B <--   disc distance  ++> G
-  VARLETTERKEYS(discfloorx,     'K', 'L');  // K <-- bottom centre X  ++> L
-  VARLETTERKEYS(discfloory,     'H', 'J');  // H <-- bottom centre Y  ++> J
-  VARLETTERKEYS(discrotangle,   'N', 'M');  // N <--   disc angle     ++> M
-  VARLETTERKEYS(discarmABangle, 'V', 'F');  // V <-- segment 1 angle  ++> F
-  VARLETTERKEYS(discarmBCangle, 'C', 'D');  // C <-- segment 2 angle  ++> D
-  VARLETTERKEYS(discarmCDangle, 'X', 'S');  // X <--  platform angle  ++> S
-  VARLETTERKEYS(discarmAlength, 'Q', 'W');  // Q <--   disc radius    ++> W
-  VARLETTERKEYS(discarmBlength, 'E', 'R');  // E <-- segment 1 radius ++> R
-  VARLETTERKEYS(discarmClength, 'T', 'Y');  // T <-- segment 2 radius ++> Y
-  VARLETTERKEYS(discarmDlength, 'Z', 'A');  // Z <-- platform offset  ++> A
+#include "disckeys.h"
   arr latarcx, latarcy, latarcz;
   arralloc(&latarcx, latNtoS.len);
   arralloc(&latarcy, latNtoS.len);
   arralloc(&latarcz, latNtoS.len);
   int li = -1;
   while (++li < latNtoS.len) {
-    latarcx.v[li] = sin(latNtoS.v[li] * DEGTORAD) * amplitude;
-    latarcy.v[li] = cos(latNtoS.v[li] * DEGTORAD) * amplitude;
+    latarcx.v[li] = sin(latNtoS.v[li] * DEGTORAD) * globeamplitude;
+    latarcy.v[li] = cos(latNtoS.v[li] * DEGTORAD) * globeamplitude;
     latarcz.v[li] = 0; // latNtoS[li] * 0;
   } // poles from x around yz
   meshgridalloc(latarcx, longPMtoPM, &Xya, &YAx);
@@ -58,34 +46,8 @@ void globe2dinit() {
   matalloc(&regionY, rlevels + 2, 5);
   matalloc(&regionZ, rlevels + 2, 5);
   // create disc/arm
-  // disc is a copy of the equatorial long ring
-  if (1) { // displaydisc
-    matalloc(&discX, 2, Xya.rows);
-    matalloc(&discY, 2, Yya.rows);
-    matalloc(&discZ, 2, Zya.rows);
-    int ri = -1;
-    while (++ri < discX.cols && ri < discY.cols && ri < discZ.cols) {
-      discX.v[0][ri]  = Zya.v[ri][latNtoSmiddle] * sin(YAz.v[ri][latNtoSmiddle] * DEGTORAD);
-      discX.v[0][ri] += Xya.v[ri][latNtoSmiddle] * cos(YAx.v[ri][latNtoSmiddle] * DEGTORAD);
-      discY.v[0][ri]  = -amplitude; // align with top // Yya.v[ri][latNtoSmiddle];
-      discZ.v[0][ri]  = Zya.v[ri][latNtoSmiddle] * cos(YAz.v[ri][latNtoSmiddle] * DEGTORAD);
-      discZ.v[0][ri] -= Xya.v[ri][latNtoSmiddle] * sin(YAx.v[ri][latNtoSmiddle] * DEGTORAD);
-      discX.v[1][ri]  = discX.v[0][ri] * discamplitude / amplitude;
-      discY.v[1][ri]  = discY.v[0][ri]; // * discamplitude / amplitude;
-      discZ.v[1][ri]  = discZ.v[0][ri] * discamplitude / amplitude;
-//      printf("discXYZ: %f, %f, %f\n", )
-    } // create disc ring - Z and X spin around XZ (Y Angle)
-    matalloc(&armX, 1, 5);
-    matalloc(&armY, 1, 5);
-    matalloc(&armZ, 1, 5);
-    armX.v[0][0] = discX.v[0][0];
-    armY.v[0][0] = discY.v[0][0];
-    armZ.v[0][0] = discZ.v[0][0];
-    armX.v[0][1] = discX.v[1][0];
-    armY.v[0][1] = discY.v[1][0];
-    armZ.v[0][1] = discZ.v[1][0];
-
-  }
+  #include "discinit.h"
+  // ^ uses Xya, Yya, Zya, YAx, YAy, YAz
   // clean up local allocs
   free3arrs(latarcx, latarcy, latarcz);
   free3mats(Xya, Yya, Zya);

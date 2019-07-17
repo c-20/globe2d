@@ -3,34 +3,10 @@
 #include "mesh.h"         // include matrix transformation routines
 #include "draw2d.h"       // include perspective drawing routines
 
+#include "globevars.h"    // include globe metrics/variables
 #include "discvars.h"     // include disc variables/trigger routines
 
-//% GLOBE
-double latdeginc = 15.0; // % HOW MANY LONG INCREMENTS WITH LAT ARCS
-double latNtoSv[] = {0,15,30,45,60,75,90,105,120,135,150,165,180};
-int latNtoScount = 13; // 13 arc angles from 0 to 180 inclusive (0 N to 0 S)
-int latNtoSmiddle = 6;
-arr latNtoS = fixedarr(latNtoSv, latNtoScount);
-double amplitude = 20.0; // sin and cos 0-180 = half-circle
-//latNtoS = 0:latdeginc:180; % N is 0, S is 180
-double longdeginc = 15.0;
-double longPMtoPMv[] = {0, 15, 30, 45, 60, 75, 90,105,120,135,150,165,180,
-                          195,210,225,240,255,270,285,300,315,330,345,360 };
-int longPMtoPMcount = 25; // 25 circle angles from 0 to 360 inclusive (0 to 360 E?)
-int longPMtoPMmiddle = 12; // 13th circle is the middle one
-arr longPMtoPM = fixedarr(longPMtoPMv, longPMtoPMcount);
-double latminsperstep = 60.0; // % 1 hour per step (1 degree)
-double latstepsperhour = 60.0 / latminsperstep;
-double longminsperstep = 60.0; // % 1 hour per step (1 degree)
-double longstepsperhour = 60.0 / longminsperstep;
-//%gXsteps = longstepsperhour * longdeginc; % 10 minutes per step Xlong
-//%gYsteps = latstepsperhour * latdeginc;  % 10 minutes per step Ylat
-double gXsteps = latdeginc + 1; // % 1 degree per square (15 boxes, 16 points)
-double gYsteps = longdeginc + 1; // % 1 degree per square (15 boxes, 16 points)
-
 int rlevels = 20; // how many decimal digits of lat/long
-
-double discamplitude = 60.0;
 
 // draw a circle around each point of the arc
 mat Xya, YAx, Yya, YAy, Zya, YAz;
@@ -54,6 +30,8 @@ int mdlen = 28;
 int mdix = 0;
 int mouselastx = 0;
 int mouselasty = 0;
+double latoffsetangley = 0.0;
+double longoffsetanglex = 0.0;
 double scaleshiftx = 0.0;
 double scaleshifty = 0.0;
 double scaledivisor = 1.0;
@@ -65,12 +43,20 @@ double rotatedivisorscalex = 1.0;
 double rotatedivisorscaley = 1.0;
 double scalex = 1.0;
 double scaley = 1.0;
-int xoffset = 0;
-int yoffset = 0;
+double pxoffsetx = 0.0;
+double pxoffsety = 0.0;
+#define ROUNDINT(val)   ((int)(val + 0.5))
+//int xoffset = 0; // <---- should these not be doubles .... ?
+//int yoffset = 0; // <---- ................................ ?
 // globekeys included at top of file
 
 void globe2dupdate(HDC dc, int clientw, int clienth) {
   #include "globectrl.h" // {
+    scalex = GETVARVALUE(globalzoom);
+    scaley = GETVARVALUE(globalzoom);
+//    offsetx = GETVARVALUE(globaloffsetx);
+//    rotatey = GETVARVALUE(globalrotatey);
+//    rotatex = GETVARVALUE(globalrotatex);
     // offsetx and offsety used to determine lat/long rotation
     // other vars to be added....................................
 
@@ -285,19 +271,20 @@ void globe2dupdate(HDC dc, int clientw, int clienth) {
     copyalloc3mats(latX, latY, latZ, &LaX, &LaY, &LaZ);
     copyalloc3mats(regionX, regionY, regionZ, &ReX, &ReY, &ReZ);
     mat DiX, DiY, DiZ; // uses init values as reference
-    mat ArX, ArY, ArZ; // uses init values as reference
+//    mat ArX, ArY, ArZ; // uses init values as reference
     copyalloc3mats(discX, discY, discZ, &DiX, &DiY, &DiZ);
-    copyalloc3mats(armX, armY, armZ, &ArX, &ArY, &ArZ);
+    Pt3ScriptList *seglist = copyallocPt3ScriptList(segments[0]); // starts w/
+//    copyalloc3mats(armX, armY, armZ, &ArX, &ArY, &ArZ);
 
-    #include "discarm.h"
+    #include "discupdate.h"
 
     //% align N-S vertically (0 is along Y around X)
-    double tovertical = 90.0; //% + offset
+    double tovertical = 90.0;// + VARVAL(rotatehorizontal); //% + offset
     xaxisrotate(LoX, LoY, LoZ, tovertical);
     xaxisrotate(LaX, LaY, LaZ, tovertical);
     xaxisrotate(ReX, ReY, ReZ, tovertical);
     xaxisrotate(DiX, DiY, DiZ, tovertical);
-    xaxisrotate(ArX, ArY, ArZ, tovertical);
+    xaxisrotatePt3ScriptList(seglist, tovertical);
     //double longwidth = maxLong - minLong;
     double spintozero = (180.0 - weLong); // % - (longwidth ./ 2); % minY * latdeginc - 90;
     double disctozero = (180.0 - discLong);
@@ -305,32 +292,58 @@ void globe2dupdate(HDC dc, int clientw, int clienth) {
     zaxisrotate(LaX, LaY, LaZ, spintozero);
     zaxisrotate(ReX, ReY, ReZ, spintozero);
     zaxisrotate(DiX, DiY, DiZ, disctozero);
-    zaxisrotate(ArX, ArY, ArZ, disctozero);
+    zaxisrotatePt3ScriptList(seglist, disctozero);
     //
     double latheight = maxLat - minLat;
     double spinup = (nsLat - 90.0) + latheight + (latheight / 2.0); // % mod(cursor(1), 360);
-    spinup += rotatex;
+    // ^ could be wrong sometimes ?
+//    spinup += mouserotatey; // rotatex
     double discup = spinup; // rotate with globe
+
     yaxisrotate(LoX, LoY, LoZ, spinup);
     yaxisrotate(LaX, LaY, LaZ, spinup);
     yaxisrotate(ReX, ReY, ReZ, spinup);
     yaxisrotate(DiX, DiY, DiZ, discup);
-    yaxisrotate(ArX, ArY, ArZ, discup);
+    yaxisrotatePt3ScriptList(seglist, discup);
     //
-    double spintofront = 90;
+//    double tiltacross = rotatey;
+    double spintofront = 90 + VARVAL(tiltacross); // rotatey;
     zaxisrotate(LoX, LoY, LoZ, spintofront);
     zaxisrotate(LaX, LaY, LaZ, spintofront);
     zaxisrotate(ReX, ReY, ReZ, spintofront);
     zaxisrotate(DiX, DiY, DiZ, spintofront);
-    zaxisrotate(ArX, ArY, ArZ, spintofront);
+    zaxisrotatePt3ScriptList(seglist, spintofront);
     //
-    double spinright = 30 + rotatey; // % mod(cursor(1), 360);
-    double discright = spinright; // 30 + discLong; // ; // disc spins with keyboard
+//    double rotatevertical = rotatex; // WUT
+    // THIS SPINS UP/DOWN ------------------------------
+    double spinright = 30 + VARVAL(rotatevertical); // % mod(cursor(1), 360);
+    double discright = spinright; // + rotatex; // 30 + discLong; // ; // disc spins with keyboard
     xaxisrotate(LoX, LoY, LoZ, spinright);
     xaxisrotate(LaX, LaY, LaZ, spinright);
     xaxisrotate(ReX, ReY, ReZ, spinright);
     xaxisrotate(DiX, DiY, DiZ, discright);
-    xaxisrotate(ArX, ArY, ArZ, discright);
+    xaxisrotatePt3ScriptList(seglist, discright);
+
+    // THIS SPINS LEFT/RIGHT-----------------------------
+    double spinright2 = VARVAL(rotatehorizontal); // % mod(cursor(1), 360);
+    double discright2 = spinright2; // + rotatex; // 30 + discLong; // ; // disc spins with keyboard
+    yaxisrotate(LoX, LoY, LoZ, spinright2);
+    yaxisrotate(LaX, LaY, LaZ, spinright2);
+    yaxisrotate(ReX, ReY, ReZ, spinright2);
+    yaxisrotate(DiX, DiY, DiZ, discright2);
+    yaxisrotatePt3ScriptList(seglist, discright2);
+
+
+    // extra twist .....
+//    double spinright2 = VARVAL(rotatehorizontal); // % mod(cursor(1), 360);
+//    double discright2 = spinright2; // + rotatex; // 30 + discLong; // ; // disc spins with keyboard
+//    zaxisrotate(LoX, LoY, LoZ, spinright2);
+//    zaxisrotate(LaX, LaY, LaZ, spinright2);
+//    zaxisrotate(ReX, ReY, ReZ, spinright2);
+//    zaxisrotate(DiX, DiY, DiZ, discright2);
+//    zaxisrotatePt3ScriptList(seglist, discright2);
+
+
     //
 //    char drawmode = 1; // mode is 1,2,3 for XY, YZ, XZ
 //    int xpos = clientw / 4;
@@ -341,20 +354,20 @@ void globe2dupdate(HDC dc, int clientw, int clienth) {
     int ycentre = (clienth / 2); // + (int)scaleshifty;
     int xcentre = (clientw / 2); // + (int)scaleshiftx;
     int trv[] = {  0,0,  0,0,  0,0,  0,0  };
-    int xpos = xcentre + xoffset;
-    int ypos = ycentre + yoffset;
+    int xpos = xcentre + ROUNDINT(VARVAL(shifthorizontal));
+    int ypos = ycentre + ROUNDINT(VARVAL(shiftvertical));
     draw(dc, xpos, ypos, scalex, scaley, drawmode, 1, LoX, LoY, LoZ, -1, NULL);
     draw(dc, xpos, ypos, scalex, scaley, drawmode, 2, LaX, LaY, LaZ, -1, NULL);
     draw(dc, xpos, ypos, scalex, scaley, drawmode, 3, ReX, ReY, ReZ, mdix, trv);
     draw(dc, xpos, ypos, scalex, scaley, drawmode, 4, DiX, DiY, DiZ, -1, NULL);
-    draw(dc, xpos, ypos, scalex, scaley, drawmode, 5, ArX, ArY, ArZ, -1, NULL);
+    drawPt3ScriptList(dc, xpos, ypos, scalex, scaley, drawmode, seglist);
 
     free3mats(LoX, LoY, LoZ);
     free3mats(LaX, LaY, LaZ);
     free3mats(ReX, ReY, ReZ);
     free3mats(DiX, DiY, DiZ);
-    free3mats(ArX, ArY, ArZ);
-
+//    free3mats(ArX, ArY, ArZ);
+    freePt3ScriptList(seglist);
     return;   // do not perform shift or rotate to centre the cursor
 
 
@@ -413,12 +426,12 @@ void globe2dupdate(HDC dc, int clientw, int clienth) {
           printf("scaleshiftx: %f\n", scaleshiftx);
   //        ypp -= 0.1; yc += 0.1;
         } else { // shift right
-          xoffset += fabs(leftlimx - mleftvaluex) / 10.0; //++;
+          pxoffsetx += fabs(leftlimx - mleftvaluex) / 10.0; //++;
           rotateshiftx = -0.01 / rotatedivisor;
           printf("rotateshiftx: %f\n", rotateshiftx);
         }
       } else if (mrightvaluex > rightlimx) { // too far right?
-        xoffset -= fabs(mrightvaluex - rightlimx) / 10.0; // --; // cancels out if both <llim and >rlim
+        pxoffsetx -= fabs(mrightvaluex - rightlimx) / 10.0; // --; // cancels out if both <llim and >rlim
         rotateshiftx = 0.01 / rotatedivisor;
         printf("rotateshiftx: %f\n", rotateshiftx);
       } else {
@@ -432,12 +445,12 @@ void globe2dupdate(HDC dc, int clientw, int clienth) {
           printf("scaleshifty: %f\n", rotateshifty);
  //         ypp -= 0.1; yc += 0.1;
         } else {
-          yoffset += fabs(toplimy - mtopvaluey) / 10.0; //++;
+          pxoffsety += fabs(toplimy - mtopvaluey) / 10.0; //++;
           rotateshifty = -0.01 / rotatedivisor;
           printf("rotateshifty: %f\n", rotateshifty);
         }
       } else if (mbottomvaluey > bottomlimy) {
-        yoffset -= fabs(mbottomvaluey - bottomlimy) / 10.0; // --; // cancels out if both <tlim and >blim
+        pxoffsety -= fabs(mbottomvaluey - bottomlimy) / 10.0; // --; // cancels out if both <tlim and >blim
         rotateshifty = 0.01 / rotatedivisor;
         printf("rotateshifty: %f\n", rotateshifty);
       } else {

@@ -180,3 +180,91 @@ void draw(HDC dc, int xpos, int ypos, double xscale, double yscale,
   }
 }
 
+Pt2 calc2dPt3(Pt3 point, int xpos, int ypos, double xscale, double yscale, char mode) {
+  double zcscale  =     (zc - zpp) / (zc - point.z);
+  double zppscale = (zpp - point.z) / (zc - point.z);
+  double ycscale  =     (yc - ypp) / (yc - point.y);
+  double yppscale = (ypp - point.y) / (yc - point.y);
+  double xcscale  =     (xc - xpp) / (xc - point.x);
+  double xppscale = (xpp - point.x) / (xc - point.x);
+  double xp = point.x * zcscale + zcx * zppscale;
+  double yp = point.y * zcscale + zcy * zppscale;
+  double xq = point.x * ycscale + ycx * yppscale;
+  double yq = point.z * ycscale + ycz * yppscale;
+  double xr = point.y * xcscale + xcy * xppscale;
+  double yr = point.z * xcscale + xcz * xppscale;
+  xp *= xscale; yp *= xscale;
+  xq *= xscale; yq *= yscale;
+  //  xq *= xscale; yq *= (yscale + 2.6) * 0.5;
+  xr *= yscale; yr *= yscale;
+  int xm = 0, ym = 0, ft = 0;
+  if (mode == 1) { xm = (int)xp; ym = (int)yp; ft = (point.x < 0.0); }
+  if (mode == 2) { xm = (int)xq; ym = (int)yq; ft = (point.y < 0.0); }
+  if (mode == 3) { xm = (int)xr; ym = (int)yr; ft = (point.z < 0.0); }
+  ft = ft; // ft is true if point is in positive range of the mode's axis
+  Pt2PT2VAR(point2d, xpos + xm, ypos + ym);
+  return point2d;
+}
+
+void drawPt3ScriptList(HDC dc, int xpos, int ypos, double xscale, double yscale,
+             char mode, Pt3ScriptList *psl) {
+  COLORREF redcolour       = RGB(255,   0,   0);
+  COLORREF yellowcolour    = RGB(255, 255,   0);
+  COLORREF greencolour     = RGB(  0, 255,   0);
+  COLORREF cyancolour      = RGB(  0, 255, 255);
+  COLORREF bluecolour      = RGB(  0,   0, 255);
+  COLORREF magentacolour   = RGB(255,   0, 255);
+  COLORREF whitecolour     = RGB(250, 250, 250);
+  COLORREF lightgreycolour = RGB(200, 200, 200);
+  COLORREF darkgreycolour  = RGB(100, 100, 100);
+  COLORREF blackcolour     = RGB(  0,   0,   0);
+  COLORREF thiscolour      = lightgreycolour;
+  Pt3ScriptList *p = psl;
+  while (p) {
+    char *script = p->script->script;
+    Pt3 *points = p->script->points;
+    Pt2PT2VAR(lastpt, 0, 0);
+    int refpointix = -1;
+    int thispointix = 0;
+    char *scriptch = script;
+    while (1) { // (*scriptch != '\0') {
+      //if (*scriptch >= 'A' && *scriptch <= 'Z') {
+      if (*scriptch >= '0' && *scriptch <= '9') {
+        thispointix = (thispointix * 10) + (*scriptch - '0');
+      } else { // if (*scriptch == ',' || *scriptch = ';' || *scriptch == '\0') {
+        if      (*scriptch == 'R') { thiscolour = redcolour;       }
+        else if (*scriptch == 'Y') { thiscolour = yellowcolour;    }
+        else if (*scriptch == 'G') { thiscolour = greencolour;     }
+        else if (*scriptch == 'C') { thiscolour = cyancolour;      }
+        else if (*scriptch == 'B') { thiscolour = bluecolour;      }
+        else if (*scriptch == 'M') { thiscolour = magentacolour;   }
+        else if (*scriptch == 'W') { thiscolour = whitecolour;     }
+        else if (*scriptch == 'L') { thiscolour = lightgreycolour; }
+        else if (*scriptch == 'D') { thiscolour = darkgreycolour;  }
+        else if (*scriptch == 'K') { thiscolour = blackcolour;     }
+        // ^ allow colour changes to act as delimiters
+        Pt2 thispt = calc2dPt3(points[thispointix], xpos, ypos, xscale, yscale, mode);
+        if (refpointix == -1) { // first point in list of line points
+          MoveToEx(dc, thispt.x, thispt.y, NULL);
+          // if (drawpointmarkers) { drawapointmarker; }
+          // ^ may draw point marker at point 0 when colour is changed
+          //   if (thisisacolour) { add/draw to colour palette ? }
+        } else {                // each next point will draw a line
+          SelectObject(dc, GetStockObject(DC_PEN));
+          SetDCPenColor(dc, thiscolour);
+          LineTo(dc, thispt.x, thispt.y);
+          // if (drawlinemarkers) { drawalinemarker; }
+        }
+        lastpt = thispt; // needed for line() but not LineTo()
+//        if (*scriptch == ';') { refpointix = -1; } // ; endsline
+//        else { refpointix = thispointix; } // colour change acts as ,
+        if (*scriptch == ',') { refpointix = thispointix; } // , expects next
+        else { refpointix = -1; } // anything else (; \0 colour change) resets
+        thispointix = 0; // reset this for next point input
+      } // else { invalidcharacterinscript! }
+      if (*scriptch == '\0') { break; } // break at end of script
+      else { scriptch++; }              // else next script char
+    }
+    p = p->next;
+  }
+}

@@ -7,7 +7,7 @@
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="Debug">
-				<Option output="bin/Debug/GlobeMouse2D" prefix_auto="1" extension_auto="1" />
+				<Option output="bin/Debug/globe2d" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -21,7 +21,7 @@
 				</Linker>
 			</Target>
 			<Target title="Release">
-				<Option output="bin/Release/GlobeMouse2D" prefix_auto="1" extension_auto="1" />
+				<Option output="bin/Release/globe2d" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Release/" />
 				<Option type="0" />
 				<Option compiler="gcc" />
@@ -45,12 +45,16 @@
 			<Add library="kernel32" />
 			<Add library="comctl32" />
 		</Linker>
+		<Unit filename="Pt3.h" />
 		<Unit filename="discarm.h" />
+		<Unit filename="discinit.h" />
+		<Unit filename="disckeys.h" />
 		<Unit filename="discvars.h" />
 		<Unit filename="draw2d.h" />
 		<Unit filename="globe2d.h" />
 		<Unit filename="globectrl.h" />
 		<Unit filename="globeinit.h" />
+		<Unit filename="globevars.h" />
 		<Unit filename="lf.h" />
 		<Unit filename="main.cpp" />
 		<Unit filename="mesh.h" />

@@ -1,6 +1,7 @@
 
 #define PI         3.1415926535897932
 #define DEGTORAD   (PI / 180.0)
+#define RADTODEG   (180.0 / PI)
 
 typedef struct _arr {
   double *v;
@@ -12,6 +13,19 @@ typedef struct _mat {
   int rows, cols;
 } mat;
 
+typedef struct _Pt2 {
+  int x, y;
+} Pt2;
+#define PT2VAR(pv, xv, yv)  \
+  pv.x = xv; pv.y = yv;
+#define Pt2PT2VAR(pv, xv, yv)  \
+  Pt2 pv; PT2VAR(pv, xv, yv);
+
+
+#include "Pt3.h"
+
+
+// =========================================================================
 // since a % b does not work for double % double
 double doublemod(double a, double b) {
   char isnegative = 0;
@@ -34,6 +48,7 @@ void xaxisrotate(mat X, mat Y, mat Z, double spindeg) {
     }
   }
 }
+
 void yaxisrotate(mat X, mat Y, mat Z, double flipdeg) {
   int r = -1;
   while (++r < X.rows && r < Y.rows && r < Z.rows) {
@@ -58,7 +73,9 @@ void zaxisrotate(mat X, mat Y, mat Z, double twistdeg) {
     }
   }
 }
+// ------------------------------------------------------------------------
 
+// ------------------------------------------------------------------------
 void linspacealloc(double start, double limit, int numsteps, arr *A) {
   A->v = (double *)calloc(numsteps, sizeof(double));
   A->len = numsteps;
